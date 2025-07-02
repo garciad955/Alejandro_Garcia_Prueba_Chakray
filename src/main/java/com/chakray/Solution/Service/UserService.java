@@ -28,16 +28,16 @@ public class UserService {
 
         try {
             User user = new User();
-            
+
             user.setName(userCreateDTO.getName());
             user.setEmail(userCreateDTO.getEmail());
             user.setPassword(userCreateDTO.getPassword());
             user.setAddresses(userCreateDTO.getAdresses());
-            
+
             user.setId(Math.abs(UUID.randomUUID().getMostSignificantBits()));
             String createdAt = ZonedDateTime.now(ZoneId.of("Europe/London")).format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
             user.setCreated_at(createdAt);
-            if (user.getAddresses()!= null && !user.getAddresses().isEmpty()) {
+            if (user.getAddresses() != null && !user.getAddresses().isEmpty()) {
                 user.getAddresses().stream().forEach(address -> address.setId(Math.abs(UUID.randomUUID().getMostSignificantBits())));
             }
             user.setPassword(sha1(user.getPassword()));
@@ -57,59 +57,72 @@ public class UserService {
         return responseService;
     }
 
-    public ResponseService UpdateAddress(Long user_id, Long address_id, UserAddressUpdateDTO direccionDTO){
-    
+    public ResponseService UpdateAddress(Long user_id, Long address_id, UserAddressUpdateDTO direccionDTO) {
+
         ResponseService responseService = new ResponseService();
         try {
-            ResponseService userExist = GetAddressesById(user_id);
-            
-            if (userExist.correct && userExist.object != null) {
-                List<Address> addresses = ((List<Address>)(userExist.object));
-                Optional<Address> addressToUpdate = addresses.stream().filter(address -> address.getId() == address_id).findFirst();
-                
+            ResponseService userDirections = GetAddressesById(user_id);
+
+            if (userDirections.correct && userDirections.object != null) {
+                List<Address> addresses = ((List<Address>) (userDirections.object));
+                Optional<Address> addressToUpdate = addresses.stream().filter(address -> address.getId().toString().equals(address_id.toString())).findFirst();
+
                 Address address;
-                
+
                 if (addressToUpdate.isPresent()) {
                     address = addressToUpdate.get();
                     responseService.statusCode = 200;
                 } else {
                     address = new Address();
                     address.setId(Math.abs(UUID.randomUUID().getMostSignificantBits()));
-//                    List<Address> addresses = ((List<Address>) userExist.object);
-                    
+
                     List<Address> addressesNew = new ArrayList<>(addresses);
                     addressesNew.add(address);
-                    
+
                     users.stream().filter(user -> user.getId() == user_id).findFirst().get().setAddresses(addressesNew);
-                    
+
                     responseService.statusCode = 201;
                 }
-                
+
                 address.setNombre(direccionDTO.getNombre());
                 address.setStreet(direccionDTO.getStreet());
                 address.setCountry_code(direccionDTO.getCountry_code());
-                
+
                 responseService.correct = true;
                 responseService.object = address;
             } else {
-                responseService = userExist;
+                Optional<User> userToUse = users.stream().filter(u -> u.getId().toString().equals(user_id.toString())).findFirst();
+                if (userToUse.isPresent()) {
+                    User user = userToUse.get();
+                    Address address = new Address(direccionDTO.getNombre(), direccionDTO.getStreet(), direccionDTO.getCountry_code());
+                    address.setId(Math.abs(UUID.randomUUID().getMostSignificantBits()));
+                    user.setAddresses(new ArrayList<Address>());
+                    user.getAddresses().add(address);
+                    responseService.correct = true;
+                    responseService.object = user.getAddresses().get(0);
+                    responseService.statusCode = 200;
+                } else {
+                    responseService.correct = false;
+                    responseService.message = "Usuario con id : " + user_id + " inexistente";
+                    responseService.statusCode = 400;
+                }
+
             }
-            
-             
-        } catch(Exception ex){
+
+        } catch (Exception ex) {
             responseService.correct = false;
             responseService.statusCode = 500;
             responseService.message = ex.getLocalizedMessage();
         }
-        
+
         return responseService;
     }
-    
-    public ResponseService DeleteUser(Long user_id){
-        ResponseService responseService =  new ResponseService();
-        try{
-            responseService.correct = users.removeIf(user -> user.getId() == user_id);
-        
+
+    public ResponseService DeleteUser(Long user_id) {
+        ResponseService responseService = new ResponseService();
+        try {
+            responseService.correct = users.removeIf(user -> user.getId().toString().equals(user_id.toString()));
+
             if (responseService.correct) {
                 responseService.message = "Usuario con el id : " + user_id + " eliminado";
                 responseService.statusCode = 200;
@@ -117,26 +130,32 @@ public class UserService {
                 responseService.statusCode = 400;
                 responseService.message = "Usuario con el id : " + user_id + " no pudo ser eliminado";
             }
-            
-        } catch(Exception ex){
+
+        } catch (Exception ex) {
             responseService.correct = false;
             responseService.statusCode = 500;
             responseService.message = ex.getLocalizedMessage();
         }
-        
+
         return responseService;
     }
-    
-    public ResponseService UpdateUser(User userUpdate, Long user_id){
+
+    public ResponseService UpdateUser(User userUpdate, Long user_id) {
         ResponseService responseService = new ResponseService();
-        try{
-            
-            Optional<User> user = users.stream().filter(u -> u.getId() == user_id).findFirst();
-            
+        try {
+
+            Optional<User> user = users.stream().filter(u -> u.getId().toString().equals(user_id.toString())).findFirst();
+
             if (user.isPresent()) {
-                if(userUpdate.getEmail() != null) user.get().setEmail(userUpdate.getEmail());
-                if(userUpdate.getName()!= null) user.get().setName(userUpdate.getName());
-                if(userUpdate.getPassword()!= null) user.get().setPassword(sha1(userUpdate.getPassword()));
+                if (userUpdate.getEmail() != null) {
+                    user.get().setEmail(userUpdate.getEmail());
+                }
+                if (userUpdate.getName() != null) {
+                    user.get().setName(userUpdate.getName());
+                }
+                if (userUpdate.getPassword() != null) {
+                    user.get().setPassword(sha1(userUpdate.getPassword()));
+                }
                 responseService.object = user.get();
                 responseService.correct = true;
                 responseService.statusCode = 200;
@@ -145,18 +164,16 @@ public class UserService {
                 responseService.statusCode = 400;
                 responseService.message = "Usuario con el id : " + user_id + " no pudo ser actualizado (verifica la existencia del recurso))";
             }
-            
-        } catch(Exception ex){
+
+        } catch (Exception ex) {
             responseService.correct = false;
             responseService.statusCode = 500;
             responseService.message = ex.getLocalizedMessage();
         }
-        
+
         return responseService;
     }
-    
-    
-    
+
     public ResponseService GetAll(String sortedBy) {
 
         ResponseService responseService = new ResponseService();
@@ -174,12 +191,12 @@ public class UserService {
         return responseService;
     }
 
-    public ResponseService GetAddressesById(long user_id){
-        
+    public ResponseService GetAddressesById(long user_id) {
+
         ResponseService responseService = new ResponseService();
-        
-        try{
-            
+
+        try {
+
             Optional<User> user = users.stream().filter(u -> u.getId() == user_id).findFirst();
             if (user.isPresent()) {
                 responseService.object = user.get().getAddresses();
@@ -193,20 +210,18 @@ public class UserService {
             } else {
                 responseService.correct = false;
                 responseService.statusCode = 400;
-                responseService.message = "No se encontro usuario con el id : " + user_id ;
+                responseService.message = "No se encontro usuario con el id : " + user_id;
             }
-            
-            
-        } catch(Exception ex){
+
+        } catch (Exception ex) {
             responseService.statusCode = 500;
             responseService.correct = false;
             responseService.message = ex.getLocalizedMessage();
         }
-        
+
         return responseService;
     }
-    
-    
+
     public ResponseService sorted(ResponseService responseService, String sortedBy) {
 
         if (sortedBy == null || sortedBy.equals("")) {
@@ -222,14 +237,19 @@ public class UserService {
         } else {
             if (users.size() != 0 && !users.isEmpty()) {
                 responseService.correct = true;
-                Comparator<User> comparator = 
-                        switch (sortedBy) {
-                            case "id" -> Comparator.comparing(User::getId);
-                            case "name" -> Comparator.comparing(User::getName);
-                            case "email" -> Comparator.comparing(User::getEmail);
-                            case "created_at" -> Comparator.comparing(User::getCreated_at);
-                            default -> null;
-                        };
+                Comparator<User> comparator
+                        = switch (sortedBy) {
+                    case "id" ->
+                        Comparator.comparing(User::getId);
+                    case "name" ->
+                        Comparator.comparing(User::getName);
+                    case "email" ->
+                        Comparator.comparing(User::getEmail);
+                    case "created_at" ->
+                        Comparator.comparing(User::getCreated_at);
+                    default ->
+                        null;
+                };
 
                 if (comparator == null) {
 
@@ -240,7 +260,7 @@ public class UserService {
                 } else {
                     responseService.correct = true;
                     responseService.statusCode = 200;
-                    responseService.object =  users.stream().sorted(comparator).toList();
+                    responseService.object = users.stream().sorted(comparator).toList();
                 }
 
             } else {
