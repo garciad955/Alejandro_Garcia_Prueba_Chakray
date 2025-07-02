@@ -36,7 +36,6 @@ public class UserRestController {
     private UserService userService;
     
     
-    
     @Operation(
         summary = "Obtener todos los usuarios con opción de ordenamiento",
         description = """
@@ -210,6 +209,7 @@ public class UserRestController {
         
         return ResponseEntity.status(responseService.statusCode).body(responseService);
     }
+    
     @Operation(
         summary = "Actualizar una dirección de un usuario por su ID",
         description = """
